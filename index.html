@@ -1117,7 +1117,7 @@
         name, price, photoUrl,
         date: `${n.getMonth()+1}/${n.getDate()}`
       };
-      await setDoc(budgetRef, { purchases: [...currentPurchases, item] });
+      await setDoc(budgetRef, { purchases: [...currentPurchases, item], budget: currentBudget });
 
       document.getElementById('p-name').value  = '';
       document.getElementById('p-price').value = '';
@@ -1135,7 +1135,7 @@
       const updated  = currentPurchases.filter(p => p.id !== id);
 
       // 先に確定保存
-      await setDoc(budgetRef, { purchases: updated });
+      await setDoc(budgetRef, { purchases: updated, budget: currentBudget });
 
       // 前のUNDOが残っていたらキャンセル
       if (undoState) { clearTimeout(undoState.timer); hideUndoToast(); }
@@ -1151,7 +1151,7 @@
     window.undoDelete = async function() {
       if (!undoState) return;
       clearTimeout(undoState.timer);
-      await setDoc(budgetRef, { purchases: undoState.snapshot });
+      await setDoc(budgetRef, { purchases: undoState.snapshot, budget: currentBudget });
       undoState = null;
       hideUndoToast();
     };
@@ -1181,7 +1181,7 @@
         try {
           const base64  = await resizeToBase64(file);
           const updated = currentPurchases.map(p => p.id===id ? {...p, photoUrl: base64} : p);
-          await setDoc(budgetRef, { purchases: updated });
+          await setDoc(budgetRef, { purchases: updated, budget: currentBudget });
         } catch(err) {
           console.error(err);
           alert('しゃしんの よみこみに しっぱいしました');
@@ -1254,7 +1254,7 @@
         try {
           const base64  = await resizeToBase64(file);
           const updated = currentPurchases.map(p => p.id===id ? {...p, photoUrl: base64} : p);
-          await setDoc(budgetRef, { purchases: updated });
+          await setDoc(budgetRef, { purchases: updated, budget: currentBudget });
           renderGallery();  // ギャラリー内も即更新
         } catch(err) { console.error(err); }
       };
