@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>たんじょうびに ほしい おもちゃ えらんでね！</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: linear-gradient(135deg, #fff9c4, #ffe0f0, #d0f0ff);
+      min-height: 100vh;
+      font-family: 'Hiragino Maru Gothic Pro', 'BIZ UDPGothic', sans-serif;
+      padding: 20px;
+      /* ノッチ・ホームバー対応 */
+      padding-left:  max(20px, env(safe-area-inset-left));
+      padding-right: max(20px, env(safe-area-inset-right));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    h1 {
+      text-align: center; font-size: 1.8em; color: #e040a0;
+      text-shadow: 2px 2px 0 #fff, -1px -1px 0 #fff;
+      margin-bottom: 8px; line-height: 1.4;
+    }
+    .subtitle { text-align: center; font-size: 1em; color: #666; margin-bottom: 16px; }
+
+    /* ===== 予算トグル ===== */
+    .budget-toggle-wrap { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+    .btn-budget-toggle {
+      background: white; border: 2px solid #e0d0f0; border-radius: 30px;
+      padding: 9px 20px; font-size: 0.9em; cursor: pointer; font-family: inherit;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s; color: #555; font-weight: bold;
+    }
+    .btn-budget-toggle:hover { background: #f5f0ff; }
+    .btn-budget-toggle.open { background: #f5f0ff; border-color: #9b59b6; color: #9b59b6; }
+
+    /* ===== 予算パネル ===== */
+    #budget-panel {
+      background: white; border-radius: 24px; padding: 20px 18px 18px;
+      margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: none;
+    }
+    .budget-section-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.88em; font-weight: bold; color: #888; margin-bottom: 8px;
+    }
+    .btn-edit-budget {
+      background: none; border: none; cursor: pointer;
+      font-size: 1em; padding: 2px 4px; border-radius: 6px;
+      color: #bbb; line-height: 1;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-edit-budget:hover { background: #f0e8ff; color: #7c3aed; }
+    .budget-edit-row {
+      display: none; align-items: center; gap: 8px;
+      margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .budget-edit-row.show { display: flex; }
+    .budget-edit-row label { font-size: 0.82em; color: #888; white-space: nowrap; }
+    .budget-edit-input {
+      width: 110px; padding: 7px 10px;
+      border: 1.5px solid #c084fc; border-radius: 10px;
+      font-size: 0.95em; font-family: inherit; outline: none;
+      text-align: right; background: #faf5ff;
+    }
+    .btn-budget-save {
+      padding: 7px 14px; background: #7c3aed; color: white;
+      border: none; border-radius: 10px; cursor: pointer;
+      font-family: inherit; font-size: 0.88em; font-weight: bold;
+    }
+    .btn-budget-cancel {
+      padding: 7px 10px; background: #f5f5f5; color: #888;
+      border: none; border-radius: 10px; cursor: pointer;
+      font-family: inherit; font-size: 0.88em;
+    }
+    /* ---- フォトストリップ（2段構成） ---- */
+    .budget-visual { margin: 10px 0 8px; }
+
+    /* 上段：写真 */
+    .bv-photo-row {
+      display: flex; height: 80px;
+      border-radius: 14px 14px 0 0; overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .bv-toy {
+      position: relative; overflow: hidden;
+      transition: flex 0.55s cubic-bezier(.4,0,.2,1);
+      min-width: 28px;
+    }
+    .bv-toy + .bv-toy { border-left: 2px solid rgba(255,255,255,0.6); }
+    .bv-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+    .bv-toy.color-0 { background: linear-gradient(160deg,#f87171,#fb923c); }
+    .bv-toy.color-1 { background: linear-gradient(160deg,#fbbf24,#f59e0b); }
+    .bv-toy.color-2 { background: linear-gradient(160deg,#4ade80,#22d3ee); }
+    .bv-toy.color-3 { background: linear-gradient(160deg,#60a5fa,#818cf8); }
+    .bv-toy.color-4 { background: linear-gradient(160deg,#c084fc,#f472b6); }
+    .bv-toy.color-5 { background: linear-gradient(160deg,#34d399,#4ade80); }
+    .bv-toy.color-6 { background: linear-gradient(160deg,#f97316,#eab308); }
+    /* 写真上のうっすら色帯（枠線代わり） */
+    .bv-toy-tint {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.08) 0%, transparent 40%);
+    }
+    /* のこり（写真行） */
+    .bv-remain-photo {
+      min-width: 28px;
+      background: repeating-linear-gradient(-45deg,#f5f5f5,#f5f5f5 5px,#ebebeb 5px,#ebebeb 10px);
+      border-left: 2px dashed #d8d8d8;
+      transition: flex 0.55s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* 下段：ラベル */
+    .bv-label-row {
+      display: flex;
+      background: white;
+      border: 1px solid #eee; border-top: none;
+      border-radius: 0 0 14px 14px;
+      overflow: hidden;
+    }
+    .bv-label {
+      flex-shrink: 0; overflow: hidden;
+      padding: 5px 5px 6px;
+      border-right: 2px solid rgba(255,255,255,0.7);
+      min-width: 28px;
+      transition: flex 0.55s cubic-bezier(.4,0,.2,1);
+    }
+    .bv-label:last-child { border-right: none; }
+    .bv-label-pct  { font-size: 0.62em; color: rgba(0,0,0,0.35); white-space: nowrap; }
+    .bv-label-name { font-size: 0.7em; color: rgba(0,0,0,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; font-weight: bold; }
+    .bv-label-price{ font-size: 0.72em; color: rgba(0,0,0,0.55); font-weight: bold; white-space: nowrap; }
+    /* おもちゃごとの背景色（上段と対応） */
+    .bv-label.color-0 { background: linear-gradient(160deg,#fecaca,#fed7aa); }
+    .bv-label.color-1 { background: linear-gradient(160deg,#fef08a,#fde68a); }
+    .bv-label.color-2 { background: linear-gradient(160deg,#bbf7d0,#a5f3fc); }
+    .bv-label.color-3 { background: linear-gradient(160deg,#bfdbfe,#c7d2fe); }
+    .bv-label.color-4 { background: linear-gradient(160deg,#e9d5ff,#fbcfe8); }
+    .bv-label.color-5 { background: linear-gradient(160deg,#a7f3d0,#bbf7d0); }
+    .bv-label.color-6 { background: linear-gradient(160deg,#fed7aa,#fef08a); }
+    /* のこり（ラベル行） */
+    .bv-label.bv-label-remain {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #f5f5f5;
+    }
+    .bv-label-remain .bv-label-name  { color: #999; font-weight: normal; }
+    .bv-label-remain .bv-label-price { color: #777; }
+
+    /* 数値サマリー */
+    .bar-summary { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.88em; }
+    .bar-spent { color: #999; }
+    .bar-remain { font-weight: bold; color: #333; font-size: 1.05em; }
+    .bar-remain.warn   { color: #f59e0b; }
+    .bar-remain.danger { color: #f87171; }
+
+    /* ---- カレンダー ---- */
+    .cal-outer { margin-top: 18px; border-top: 1px solid #f0f0f0; padding-top: 16px; }
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .cal-month-label { font-size: 0.9em; font-weight: bold; color: #555; }
+    .cal-days-left {
+      font-size: 0.82em; background: linear-gradient(135deg,#a78bfa,#ec4899);
+      color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold;
+    }
+    .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 3px; }
+    .cal-dow span { text-align: center; font-size: 0.7em; color: #bbb; padding: 2px 0; }
+    .cal-dow span:first-child { color: #f87171; }
+    .cal-dow span:last-child  { color: #60a5fa; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+    .cal-cell {
+      aspect-ratio: 1; border-radius: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 0.78em; position: relative; overflow: hidden;
+    }
+    .cal-cell.empty { background: transparent; }
+    .cal-cell.past { background: #fdf6ff; }
+    .cal-cell.past .sticker {
+      font-size: 1.45em; line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+      transform: rotate(var(--rot));
+    }
+    .cal-cell.past .day-num-small { font-size: 0.68em; color: #ccc; margin-top: 1px; }
+    .cal-cell.today {
+      background: linear-gradient(135deg,#fde68a,#fbbf24);
+      box-shadow: 0 2px 8px rgba(251,191,36,0.5); transform: scale(1.08); z-index: 1;
+    }
+    .cal-cell.today .today-star { font-size: 1.3em; line-height: 1; }
+    .cal-cell.today .today-num { font-size: 0.7em; font-weight: bold; color: #92400e; margin-top: 1px; }
+    .cal-cell.future { background: #f8f8f8; border: 1.5px solid #eee; color: #999; font-size: 0.88em; }
+    .cal-cell.future.weekend-sun { color: #f87171; border-color: #fee2e2; background: #fff5f5; }
+    .cal-cell.future.weekend-sat { color: #93c5fd; border-color: #dbeafe; background: #eff6ff; }
+
+    /* ---- シミュレーター（バー統合型） ---- */
+    /* 試算ゾーン（斜線） */
+    .bv-sim-photo {
+      min-width: 20px;
+      background: repeating-linear-gradient(
+        45deg, #fbbf24, #fbbf24 4px, #fef9c3 4px, #fef9c3 9px
+      );
+      border-left: 2px dashed rgba(234,179,8,0.8);
+      transition: flex 0.4s cubic-bezier(.4,0,.2,1);
+    }
+    .bv-sim-photo.over {
+      background: repeating-linear-gradient(
+        45deg, #f87171, #f87171 4px, #fee2e2 4px, #fee2e2 9px
+      );
+      border-left-color: rgba(239,68,68,0.8);
+    }
+    .bv-label.bv-label-sim { background: linear-gradient(160deg,#fef9c3,#fde68a); }
+    .bv-label.bv-label-sim.over { background: linear-gradient(160deg,#fee2e2,#fecaca); }
+    .bv-label.bv-label-sim .bv-label-name  { color: #92400e; }
+    .bv-label.bv-label-sim .bv-label-price { color: #b45309; }
+    .bv-label.bv-label-sim.over .bv-label-name  { color: #991b1b; }
+    .bv-label.bv-label-sim.over .bv-label-price { color: #dc2626; }
+
+    /* バーサマリー行（2列：使用額 ｜ のこり） */
+    .bar-summary {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 6px; font-size: 0.88em;
+    }
+    .bar-spent { color: #999; white-space: nowrap; }
+    .bar-remain { font-weight: bold; color: #333; font-size: 1.05em; white-space: nowrap; margin-left: auto; }
+    .bar-remain.warn   { color: #f59e0b; }
+    .bar-remain.danger { color: #f87171; }
+
+    /* 試算エリア（独立行） */
+    .sim-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 8px; padding: 10px 14px;
+      background: #faf5ff; border-radius: 14px;
+      border: 1.5px solid #e9d5ff;
+      cursor: text;
+    }
+    .sim-row-label {
+      font-size: 0.8em; font-weight: bold; color: #a855f7;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .sim-row-prefix { color: #c084fc; font-size: 1em; flex-shrink: 0; }
+    .sim-row-input {
+      flex: 1; min-width: 0; border: none; background: transparent;
+      font-size: 1.1em; font-family: inherit; outline: none;
+      text-align: right; color: #333;
+    }
+    .sim-row-input::placeholder { color: #ddd; }
+    .sim-row-clear {
+      background: #e9d5ff; border: none; border-radius: 50%;
+      width: 24px; height: 24px; font-size: 0.75em; cursor: pointer;
+      color: #9333ea; flex-shrink: 0; display: none;
+      align-items: center; justify-content: center; font-weight: bold;
+    }
+    .sim-row-clear.show { display: flex; }
+    /* 試算中のステータス */
+    .sim-status {
+      display: none; text-align: center; font-size: 0.82em;
+      padding: 6px 10px; border-radius: 10px; margin-top: 4px;
+      font-weight: bold;
+    }
+    .sim-status.show  { display: block; }
+    .sim-status.ok    { background: #f0fdf4; color: #16a34a; }
+    .sim-status.warn  { background: #fffbeb; color: #d97706; }
+    .sim-status.over  { background: #fee2e2; color: #dc2626; }
+
+    /* ---- 購入記録 ---- */
+    .purchase-section { margin-top: 16px; border-top: 1px solid #f0f0f0; padding-top: 14px; }
+    .purchase-title { font-size: 0.88em; font-weight: bold; color: #888; margin-bottom: 10px; }
+
+    .purchase-form { display: flex; gap: 6px; margin-bottom: 8px; }
+    .purchase-form input[type="text"] {
+      flex: 2; min-width: 0; padding: 9px 12px; border: 1.5px solid #e8e8e8;
+      border-radius: 12px; font-size: 0.88em; font-family: inherit; outline: none; background: #fafafa;
+    }
+    .purchase-form input[type="text"]:focus { border-color: #c084fc; background: white; }
+    .purchase-form input[type="number"] {
+      flex: 1; min-width: 0; padding: 9px 8px; border: 1.5px solid #e8e8e8;
+      border-radius: 12px; font-size: 0.88em; font-family: inherit; outline: none; background: #fafafa;
+    }
+    .purchase-form input[type="number"]:focus { border-color: #c084fc; background: white; }
+    .btn-add {
+      padding: 9px 14px; background: linear-gradient(135deg,#e040a0,#c026d3);
+      color: white; border: none; border-radius: 12px; cursor: pointer;
+      font-family: inherit; font-size: 0.88em; font-weight: bold;
+      white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(192,38,211,0.25);
+    }
+    .btn-add:active { transform: scale(0.96); }
+
+    /* 写真エリア */
+    .photo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .btn-photo {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 14px; background: #f5f0ff; border: 1.5px solid #ddd6fe;
+      border-radius: 12px; font-size: 0.84em; color: #7c3aed; cursor: pointer;
+      font-family: inherit; font-weight: bold; white-space: nowrap; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-photo:hover { background: #ede9fe; }
+    .photo-preview-wrap {
+      display: none; position: relative; flex-shrink: 0;
+    }
+    .photo-preview-wrap img {
+      width: 56px; height: 56px; object-fit: cover;
+      border-radius: 10px; border: 2px solid #ddd6fe; display: block;
+    }
+    .btn-clear-photo {
+      position: absolute; top: -6px; right: -6px;
+      background: #7c3aed; color: white; border: none; border-radius: 50%;
+      width: 18px; height: 18px; font-size: 0.7em; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .upload-progress {
+      display: none; font-size: 0.8em; color: #a78bfa; text-align: center;
+      padding: 4px 0; animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* 購入リスト */
+    #purchase-list { list-style: none; max-height: 240px; overflow-y: auto; }
+    #purchase-list li {
+      display: flex; align-items: center; padding: 8px 0;
+      border-bottom: 1px dashed #eee; gap: 8px;
+    }
+    #purchase-list li:last-child { border-bottom: none; }
+    /* 写真欄（共通ラッパー） */
+    .p-photo-wrap { position: relative; flex-shrink: 0; width: 52px; height: 52px; }
+    .p-thumb {
+      width: 52px; height: 52px; object-fit: cover; border-radius: 10px;
+      border: 2px solid #f0e8ff; cursor: pointer;
+      transition: transform 0.15s; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: block;
+    }
+    .p-thumb:hover { transform: scale(1.05); }
+    .p-no-photo {
+      width: 52px; height: 52px; border-radius: 10px; background: #f5f5f5;
+      border: 2px dashed #ccc; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; font-size: 1.1em;
+      color: #bbb; cursor: pointer; transition: all 0.15s; gap: 1px;
+    }
+    .p-no-photo:hover { background: #ede9fe; border-color: #a78bfa; color: #7c3aed; }
+    .p-no-photo .add-hint { font-size: 0.55em; color: #bbb; }
+    .p-no-photo:hover .add-hint { color: #7c3aed; }
+    /* 差し替えボタン（写真あり時） */
+    .btn-rephoto {
+      position: absolute; bottom: -4px; right: -4px;
+      background: #7c3aed; color: white; border: 2px solid white;
+      border-radius: 50%; width: 20px; height: 20px; font-size: 0.65em;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .p-photo-wrap:hover .btn-rephoto { opacity: 1; }
+    .p-info { flex: 1; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86em; }
+    .p-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+    .p-price { color: #e040a0; font-weight: bold; font-size: 0.88em; }
+    .p-date  { color: #ccc; font-size: 0.75em; }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: #ddd; font-size: 1em; padding: 2px 5px; flex-shrink: 0; line-height: 1;
+    }
+    .btn-del:hover { color: #f87171; }
+    .purchase-empty { color: #ccc; text-align: center; font-size: 0.84em; padding: 10px 0; }
+
+    /* ===== ギャラリーモーダル ===== */
+    #gallery-modal {
+      display: none; position: fixed; inset: 0;
+      background: #0f0f1a; z-index: 9000;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 0 0 max(40px, env(safe-area-inset-bottom));
+    }
+    #gallery-modal.show { display: block; }
+    .gallery-header {
+      position: sticky; top: 0; z-index: 1;
+      background: rgba(15,15,26,0.92);
+      backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px max(18px, env(safe-area-inset-right)) 16px max(18px, env(safe-area-inset-left));
+    }
+    .gallery-title {
+      color: white; font-size: 1em; font-weight: bold;
+    }
+    .gallery-month { color: #a78bfa; font-size: 0.82em; margin-top: 2px; }
+    .btn-gallery-close {
+      background: rgba(255,255,255,0.12); border: none; color: white;
+      font-size: 1.1em; border-radius: 50%;
+      width: 40px; height: 40px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3px; padding: 3px;
+    }
+    .gallery-card { position: relative; cursor: pointer; overflow: hidden; border-radius: 4px; }
+    .gallery-card-img {
+      width: 100%; aspect-ratio: 1; object-fit: cover; display: block;
+      transition: transform 0.2s;
+    }
+    .gallery-card:active .gallery-card-img { transform: scale(0.97); }
+    .gallery-card-overlay {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.75));
+      padding: 28px 10px 10px;
+    }
+    .gallery-card-name  { color: white; font-size: 0.82em; font-weight: bold; line-height: 1.3; }
+    .gallery-card-price { color: #fde68a; font-size: 0.78em; }
+    .gallery-no-photo {
+      width: 100%; aspect-ratio: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #1e1e30; color: #666; font-size: 2em;
+      cursor: pointer;
+    }
+    .gallery-no-photo .no-photo-name  { font-size: 0.4em; color: #555; margin-top: 4px; }
+    .gallery-no-photo .no-photo-price { font-size: 0.38em; color: #7c3aed; font-weight: bold; }
+    .gallery-empty {
+      color: #555; text-align: center; padding: 60px 20px;
+      font-size: 0.9em; line-height: 2;
+    }
+    /* ギャラリー開くボタン */
+    .btn-gallery-open {
+      display: flex; align-items: center; gap: 8px; justify-content: center;
+      width: 100%; margin: 16px 0;
+      padding: 14px;
+      background: linear-gradient(135deg,#1e1e30,#2d1b4e);
+      color: white; border: none; border-radius: 18px;
+      font-family: inherit; font-size: 0.95em; font-weight: bold;
+      cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      transition: opacity 0.15s;
+    }
+    .btn-gallery-open:active { opacity: 0.85; }
+    .btn-gallery-badge {
+      background: #7c3aed; color: white; border-radius: 20px;
+      padding: 2px 8px; font-size: 0.8em; margin-left: auto;
+    }
+
+    /* ===== UNDOトースト ===== */
+    .undo-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1e1e2e; color: white;
+      padding: 12px 14px 12px 16px;
+      border-radius: 14px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+      z-index: 10000; white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      font-size: 0.88em;
+    }
+    .undo-toast.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .undo-toast-msg { color: #ccc; }
+    .undo-toast-name { color: white; font-weight: bold; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+    .undo-bar {
+      position: absolute; bottom: 0; left: 0;
+      height: 3px; background: #a78bfa; border-radius: 0 0 14px 14px;
+      width: 100%;
+      transform-origin: left;
+      animation: none;
+    }
+    @keyframes undo-shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+    .btn-undo {
+      background: #7c3aed; border: none; color: white;
+      padding: 7px 14px; border-radius: 9px; cursor: pointer;
+      font-family: inherit; font-size: 0.92em; font-weight: bold;
+      flex-shrink: 0;
+    }
+    .btn-undo:hover { background: #6d28d9; }
+
+    /* ===== ライトボックス ===== */
+    #lightbox {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88); z-index: 9999;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    #lightbox.show { display: flex; }
+    #lightbox img {
+      max-width: 92vw; max-height: 88vh;
+      border-radius: 16px; object-fit: contain;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      animation: popIn 0.2s ease;
+    }
+    @keyframes popIn { from{transform:scale(0.85);opacity:0} to{transform:scale(1);opacity:1} }
+    #lightbox-close {
+      position: fixed; top: 16px; right: 20px;
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      font-size: 1.6em; border-radius: 50%; width: 44px; height: 44px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ===== おもちゃ ===== */
+    .series-title {
+      font-size: 1.1em; font-weight: bold; color: #fff;
+      padding: 8px 16px; border-radius: 20px; margin: 20px 0 12px; display: inline-block;
+    }
+    .series-jobraver .series-title   { background: #ff6b35; }
+    .series-shinkalioin .series-title { background: #3b82f6; }
+    .toy-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(340px,100%),1fr)); gap: 20px; margin-bottom: 8px; }
+    .toy-card {
+      background: white; border-radius: 20px; padding: 20px; cursor: pointer;
+      border: 4px solid transparent; transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; user-select: none;
+    }
+    .toy-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    .toy-card.selected {
+      border-color: #f59e0b; background: #fffbeb;
+      transform: translateY(-4px); box-shadow: 0 8px 20px rgba(245,158,11,0.3);
+    }
+    .toy-card .star { position: absolute; top:12px; right:14px; font-size:1.8em; opacity:0.2; transition:all 0.2s; }
+    .toy-card.selected .star { opacity: 1; }
+    .toy-img { width:100%; height:280px; object-fit:contain; margin-bottom:10px; border-radius:10px; }
+    .toy-name { font-size:1em; font-weight:bold; color:#333; line-height:1.5; text-align:center; }
+    .result-box {
+      background:white; border-radius:20px; padding:24px;
+      margin-top:30px; box-shadow:0 4px 16px rgba(0,0,0,0.1); min-height:80px;
+    }
+    .result-box h2 { font-size:1.2em; color:#e040a0; margin-bottom:12px; }
+    .result-list { list-style:none; }
+    .result-list li { padding:6px 0; font-size:0.95em; color:#333; border-bottom:1px dashed #eee; }
+    .result-list li:last-child { border-bottom:none; }
+    .result-list li::before { content:"⭐ "; }
+    .empty-msg { color:#aaa; text-align:center; font-size:0.95em; }
+    .tap-hint  { text-align:center; color:#999; font-size:0.85em; margin-top:6px; }
+
+    /* ===== 横画面（iPhone landscape）対応 ===== */
+    @media (orientation: landscape) and (max-height: 500px) {
+      body { padding-top: 14px; }
+
+      h1 { font-size: 1.3em; margin-bottom: 4px; }
+      .subtitle { margin-bottom: 10px; font-size: 0.9em; }
+
+      /* ギャラリー: 4列 */
+      .gallery-grid { grid-template-columns: repeat(4, 1fr); }
+
+      /* おもちゃ: 2列 */
+      .toy-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+      .toy-img  { height: 180px; }
+
+      /* 予算パネル: 横2段レイアウト */
+      .budget-panel-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 16px;
+      }
+      /* フォトストリップは2列にまたがる */
+      .budget-visual    { grid-column: 1 / -1; }
+      .bar-summary      { grid-column: 1 / -1; }
+      /* カレンダーを左、記録系を右に */
+      .cal-outer        { grid-column: 1; }
+      .sim-section      { grid-column: 2; border-top: none; padding-top: 0; border-left: 1px solid #f0f0f0; padding-left: 14px; }
+      .purchase-section { grid-column: 2; margin-top: 0; border-top: 1px solid #f0f0f0; padding-left: 14px; }
+
+      /* カレンダーセルを少し小さく */
+      .cal-cell { border-radius: 6px; font-size: 0.72em; }
+      .cal-cell.past .sticker { font-size: 1.2em; }
+
+      /* フォトストリップ高さ縮小 */
+      .bv-photo-row { height: 60px; }
+
+      /* UNDOトースト: ホームバーより上 */
+      .undo-toast { bottom: max(24px, env(safe-area-inset-bottom)); }
+
+      /* ギャラリーヘッダー */
+      .gallery-header { padding-top: 10px; padding-bottom: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ギャラリーモーダル -->
+  <div id="gallery-modal">
+    <div class="gallery-header">
+      <div>
+        <div class="gallery-title">📸 かったおもちゃ</div>
+        <div class="gallery-month" id="gallery-month-label"></div>
+      </div>
+      <button class="btn-gallery-close" onclick="closeGallery()">✕</button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid"></div>
+  </div>
+
+  <!-- UNDOトースト -->
+  <div class="undo-toast" id="undo-toast">
+    <div>
+      <div class="undo-toast-msg">🗑 さくじょしました</div>
+      <div class="undo-toast-name" id="undo-toast-name"></div>
+    </div>
+    <button class="btn-undo" onclick="undoDelete()">↩ もとに戻す</button>
+    <div class="undo-bar" id="undo-bar"></div>
+  </div>
+
+  <!-- ライトボックス -->
+  <div id="lightbox" onclick="closeLightbox()">
+    <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="lightbox-img" src="" alt="">
+  </div>
+
+  <h1>🎁 ほしい おもちゃ えらんでね！</h1>
+  <p class="subtitle">ほしいな～ とおもったら タップ！</p>
+
+  <!-- ギャラリーボタン -->
+  <button class="btn-gallery-open" onclick="openGallery()">
+    📸 かったおもちゃをみる
+    <span class="btn-gallery-badge" id="gallery-badge">0こ</span>
+  </button>
+
+  <!-- 予算トグル -->
+  <div class="budget-toggle-wrap">
+    <button class="btn-budget-toggle" id="budget-toggle-btn" onclick="toggleBudget()">
+      💰 予算をかくにん
+    </button>
+  </div>
+
+  <!-- 予算パネル -->
+  <div id="budget-panel">
+
+    <!-- ① 予算バー -->
+    <div class="budget-section-title">
+      💴 今月の予算（<span id="budget-month-label"></span>）
+      <button class="btn-edit-budget" onclick="toggleBudgetEdit()" title="予算額をかえる">✏️</button>
+    </div>
+    <div class="budget-edit-row" id="budget-edit-row">
+      <label>予算額：</label>
+      <input type="number" class="budget-edit-input" id="budget-amount-input" min="0" step="100">
+      <button class="btn-budget-save"   onclick="saveBudgetAmount()">保存</button>
+      <button class="btn-budget-cancel" onclick="toggleBudgetEdit()">キャンセル</button>
+    </div>
+    <div class="budget-visual" id="budget-visual"></div>
+    <div class="bar-summary">
+      <span class="bar-spent">つかった: <strong id="b-spent">¥0</strong></span>
+      <span class="bar-remain" id="b-remain-wrap">のこり <strong id="b-remain">¥10,000</strong></span>
+    </div>
+    <div class="sim-row">
+      <span class="sim-row-label">🧮 試算</span>
+      <span class="sim-row-prefix">¥</span>
+      <input type="number" class="sim-row-input" id="sim-input"
+        inputmode="numeric" placeholder="いくら？" min="0"
+        oninput="runSim(this.value)">
+      <button class="sim-row-clear" id="sim-clear" onclick="clearSim()">✕</button>
+    </div>
+    <div class="sim-status" id="sim-status"></div>
+
+    <div class="budget-panel-body">
+    <!-- ② カレンダー -->
+    <div class="cal-outer">
+      <div class="cal-header">
+        <div class="cal-month-label" id="cal-month-label"></div>
+        <div class="cal-days-left"   id="cal-days-left">あと -- 日</div>
+      </div>
+      <div class="cal-dow">
+        <span>日</span><span>月</span><span>火</span><span>水</span>
+        <span>木</span><span>金</span><span>土</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+
+    <!-- ③ 購入記録 -->
+    <div class="purchase-section">
+      <div class="purchase-title">🛒 こうにゅう きろく</div>
+
+      <div class="purchase-form">
+        <input type="text"   id="p-name"  placeholder="なまえ（例：ブレイバー）">
+        <input type="number" id="p-price" placeholder="¥" min="0">
+        <button class="btn-add" onclick="addPurchase()">＋ついか</button>
+      </div>
+
+      <div class="photo-row">
+        <label class="btn-photo" for="p-photo">📷 しゃしんをえらぶ</label>
+        <input type="file" id="p-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+        <div class="photo-preview-wrap" id="preview-wrap">
+          <img id="preview-img" src="" alt="プレビュー">
+          <button class="btn-clear-photo" onclick="clearPhoto()">✕</button>
+        </div>
+      </div>
+
+      <div class="upload-progress" id="upload-progress">🔄 しゃしんをよみこみ中...</div>
+
+      <ul id="purchase-list">
+        <li class="purchase-empty">まだ きろくがないよ</li>
+      </ul>
+    </div>
+    </div><!-- /budget-panel-body -->
+  </div>
+
+  <!-- ジョブレイバー -->
+  <div class="series-jobraver">
+    <span class="series-title">🚒 トミカヒーローズ ジョブレイバー</span>
+    <div class="toy-grid">
+      <div class="toy-card" onclick="toggle(this)" data-name="DXスカイブレイバー ANAジェット旅客機">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/tjbdx_sb_ana/img/mainimg_01.webp" alt="DXスカイブレイバー ANAジェット旅客機">
+        <div class="toy-name">DXスカイブレイバー<br>ANAジェット旅客機</div>
+      </div>
+      <div class="toy-card" onclick="toggle(this)" data-name="レースブレイバー 日産 GT-R & フェアレディZ ダブルセット">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/dx-race-braver/img/JB_NISSANset_01.png" alt="レースブレイバー 日産 GT-R & フェアレディZ ダブルセット">
+        <div class="toy-name">レースブレイバー<br>日産 GT-R & フェアレディZ<br>ダブルセット</div>
+      </div>
+      <div class="toy-card" onclick="toggle(this)" data-name="DX ポリスブレイバー 機動隊 & 交通機動隊 ダブルセット">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/tjbdx_pb_riotw/img/mainimg_01.webp" alt="DX ポリスブレイバー 機動隊 & 交通機動隊 ダブルセット">
+        <div class="toy-name">DX ポリスブレイバー<br>機動隊 & 交通機動隊<br>ダブルセット</div>
+      </div>
+      <div class="toy-card" onclick="toggle(this)" data-name="グランドビルドブレイバー ダンプトラック & ブルドーザー DX セット">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/tjbdx_gbb_dtbd/img/mainimg_01.webp" alt="グランドビルドブレイバー ダンプトラック & ブルドーザー DX セット">
+        <div class="toy-name">グランドビルドブレイバー<br>ダンプトラック & ブルドーザー<br>DX セット</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- シンカリオン -->
+  <div class="series-shinkalioin">
+    <span class="series-title">🚄 シンカリオン チェンジ ザ ワールド</span>
+    <div class="toy-grid">
+      <div class="toy-card" onclick="toggle(this)" data-name="ハーデスシンカリオン デストロイフォーム（ミニュアデス・オルトロスとのセット）">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/plarail/shinkalion/cw/images/index/pic_202407_hades_01.png" alt="ハーデスシンカリオン デストロイフォーム">
+        <div class="toy-name">ハーデスシンカリオン デストロイフォーム<br>（ミニュアデス・オルトロス とのセット）</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tap-hint">👆 えらんだら したに でてくるよ！</p>
+
+  <div class="result-box">
+    <h2>⭐ えらんだ おもちゃ</h2>
+    <ul class="result-list" id="result-list"></ul>
+    <p class="empty-msg" id="empty-msg">まだ えらんでないよ〜</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-fKL8WcDbzFbAqUoZW9lwJOVG-EaQjv4",
+      authDomain: "sakuho-toys.firebaseapp.com",
+      projectId: "sakuho-toys",
+      storageBucket: "sakuho-toys.firebasestorage.app",
+      messagingSenderId: "346664542781",
+      appId: "1:346664542781:web:a5871e4f6b646a3b73c054"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    const SEL_REF = doc(db, 'selection', 'current');
+
+    // ===== おもちゃ選択 =====
+    window.toggle = function(card) {
+      const was = card.classList.contains('selected');
+      document.querySelectorAll('.toy-card').forEach(c => c.classList.remove('selected'));
+      if (!was) card.classList.add('selected');
+      setDoc(SEL_REF, { name: was ? '' : card.dataset.name });
+      updateResult();
+    };
+    (async () => {
+      try {
+        const snap = await getDoc(SEL_REF);
+        if (snap.exists() && snap.data().name) {
+          document.querySelectorAll('.toy-card').forEach(c => {
+            if (c.dataset.name === snap.data().name) c.classList.add('selected');
+          });
+        }
+      } catch(e) {}
+      updateResult();
+    })();
+    function updateResult() {
+      const sel  = document.querySelectorAll('.toy-card.selected');
+      const list = document.getElementById('result-list');
+      const msg  = document.getElementById('empty-msg');
+      list.innerHTML = '';
+      if (!sel.length) { msg.style.display = 'block'; return; }
+      msg.style.display = 'none';
+      sel.forEach(c => {
+        const li = document.createElement('li');
+        li.textContent = c.dataset.name;
+        list.appendChild(li);
+      });
+    }
+
+    // ===== 予算 =====
+    let currentBudget = 10000;  // Firestoreから上書きされる
+    const STICKERS = ['⭐','🌟','💫','🌸','🎀','🍀','🌈','🦋','🎈','🌺','🐝','💝','🎉','🌻','🍭','🎊','🐱','🐶','🐸','🦊','🦁','🐼','🌷','🍓','🍒','🎵','🎨','🚀','🎠','🏅'];
+    const ROTS     = ['−3deg','2deg','−5deg','4deg','−2deg','5deg','−4deg','3deg'];
+
+    function getMonthKey() {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    // ---- カレンダー ----
+    function buildCalendar() {
+      const now       = new Date();
+      const year      = now.getFullYear();
+      const month     = now.getMonth();
+      const today     = now.getDate();
+      const total     = new Date(year, month+1, 0).getDate();
+      const firstDow  = new Date(year, month, 1).getDay();
+      const daysLeft  = total - today;
+      document.getElementById('cal-month-label').textContent = `${year}年${month+1}月`;
+      document.getElementById('cal-days-left').textContent   = daysLeft===0 ? '今日で枠が回復！🎉' : `あと ${daysLeft} 日`;
+      const grid = document.getElementById('cal-grid');
+      grid.innerHTML = '';
+      for (let i=0; i<firstDow; i++) {
+        const e = document.createElement('div');
+        e.className = 'cal-cell empty';
+        grid.appendChild(e);
+      }
+      for (let d=1; d<=total; d++) {
+        const cell = document.createElement('div');
+        const dow  = (firstDow + d - 1) % 7;
+        if (d < today) {
+          cell.className = 'cal-cell past';
+          cell.style.setProperty('--rot', ROTS[(d-1)%ROTS.length]);
+          cell.innerHTML = `<span class="sticker">${STICKERS[(d-1)%STICKERS.length]}</span><span class="day-num-small">${d}</span>`;
+        } else if (d === today) {
+          cell.className = 'cal-cell today';
+          cell.innerHTML = `<span class="today-star">📍</span><span class="today-num">${d}</span>`;
+        } else {
+          let cls = 'cal-cell future';
+          if (dow===0) cls += ' weekend-sun';
+          if (dow===6) cls += ' weekend-sat';
+          cell.className = cls;
+          cell.textContent = d;
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    // ---- フォトストリップ（2段構成・試算ゾーン対応） ----
+    function renderBudgetVisual(purchases, simAmount = 0) {
+      const container = document.getElementById('budget-visual');
+      container.innerHTML = '';
+      const spent  = purchases.reduce((s,p) => s+(p.price||0), 0);
+      const remain = Math.max(0, currentBudget - spent);
+
+      // 上段：写真行
+      const photoRow = document.createElement('div');
+      photoRow.className = 'bv-photo-row';
+
+      // 下段：ラベル行
+      const labelRow = document.createElement('div');
+      labelRow.className = 'bv-label-row';
+
+      if (!purchases.length) {
+        photoRow.innerHTML = `<div class="bv-remain-photo" style="flex:1"></div>`;
+        labelRow.innerHTML = `<div class="bv-label bv-label-remain" style="flex:1"><div class="bv-label-name">まだつかっていないよ！</div><div class="bv-label-price">¥${currentBudget.toLocaleString()}</div></div>`;
+        container.append(photoRow, labelRow);
+        return;
+      }
+
+      purchases.forEach((p, i) => {
+        const ratio = Math.max((p.price||0) / currentBudget, 0);
+        const pct   = Math.round(ratio * 100);
+
+        // 写真セル
+        const ph = document.createElement('div');
+        ph.className = `bv-toy color-${i % 7}`;
+        ph.style.flex = String(ratio);
+        if (p.photoUrl) {
+          ph.innerHTML = `<div class="bv-bg" style="background-image:url('${p.photoUrl}')"></div><div class="bv-toy-tint"></div>`;
+        }
+        photoRow.appendChild(ph);
+
+        // ラベルセル（写真行と同じ色クラス）
+        const lb = document.createElement('div');
+        lb.className = `bv-label color-${i % 7}`;
+        lb.style.flex = String(ratio);
+        lb.innerHTML = `
+          <div class="bv-label-pct">${pct}%</div>
+          <div class="bv-label-name">${p.name}</div>
+          <div class="bv-label-price">¥${(p.price||0).toLocaleString()}</div>`;
+        labelRow.appendChild(lb);
+      });
+
+      // のこり（試算ゾーンつき）
+      if (remain > 0) {
+        if (simAmount > 0) {
+          const simCapped  = Math.min(simAmount, remain);
+          const afterRemain = remain - simCapped;
+          const isOver     = simAmount > remain;
+
+          // 試算ゾーン（斜線）
+          const sph = document.createElement('div');
+          sph.className = 'bv-sim-photo' + (isOver ? ' over' : '');
+          sph.style.flex = String(simCapped / currentBudget);
+          photoRow.appendChild(sph);
+
+          const slb = document.createElement('div');
+          slb.className = 'bv-label bv-label-sim' + (isOver ? ' over' : '');
+          slb.style.flex = String(simCapped / currentBudget);
+          slb.innerHTML = `
+            <div class="bv-label-pct">${Math.round(simCapped/currentBudget*100)}%</div>
+            <div class="bv-label-name">${isOver ? 'オーバー' : 'よてい'}</div>
+            <div class="bv-label-price">¥${simCapped.toLocaleString()}</div>`;
+          labelRow.appendChild(slb);
+
+          // 試算後のこり
+          if (afterRemain > 0) {
+            const rph2 = document.createElement('div');
+            rph2.className = 'bv-remain-photo';
+            rph2.style.flex = String(afterRemain / currentBudget);
+            photoRow.appendChild(rph2);
+
+            const rlb2 = document.createElement('div');
+            rlb2.className = 'bv-label bv-label-remain';
+            rlb2.style.flex = String(afterRemain / currentBudget);
+            rlb2.innerHTML = `<div class="bv-label-name">のこり</div><div class="bv-label-price">¥${afterRemain.toLocaleString()}</div>`;
+            labelRow.appendChild(rlb2);
+          }
+        } else {
+          // 試算なし（通常表示）
+          const rph = document.createElement('div');
+          rph.className = 'bv-remain-photo';
+          rph.style.flex = String(remain / currentBudget);
+          photoRow.appendChild(rph);
+
+          const rlb = document.createElement('div');
+          rlb.className = 'bv-label bv-label-remain';
+          rlb.style.flex = String(remain / currentBudget);
+          rlb.innerHTML = `<div class="bv-label-name">のこり</div><div class="bv-label-price">¥${remain.toLocaleString()}</div>`;
+          labelRow.appendChild(rlb);
+        }
+      }
+
+      container.append(photoRow, labelRow);
+    }
+
+    // ---- 数値サマリー更新 ----
+    function updateBudgetBar(purchases) {
+      // 現在の試算値を引き継いで再描画
+      const simVal = parseInt(document.getElementById('sim-input')?.value || '0', 10) || 0;
+      renderBudgetVisual(purchases, simVal);
+
+      const spent  = purchases.reduce((s,p) => s+(p.price||0), 0);
+      const remain = Math.max(0, currentBudget - spent);
+      const pct    = Math.min(100, (remain/currentBudget)*100);
+      document.getElementById('b-spent').textContent  = `¥${spent.toLocaleString()}`;
+      document.getElementById('b-remain').textContent = `¥${remain.toLocaleString()}`;
+      const wrap = document.getElementById('b-remain-wrap');
+      wrap.className = pct>50 ? 'bar-remain' : pct>20 ? 'bar-remain warn' : 'bar-remain danger';
+    }
+
+    // ---- 購入リスト ----
+    function renderList(purchases) {
+      const ul = document.getElementById('purchase-list');
+      ul.innerHTML = '';
+      if (!purchases.length) {
+        const li = document.createElement('li');
+        li.className = 'purchase-empty'; li.textContent = 'まだ きろくがないよ';
+        ul.appendChild(li); return;
+      }
+      [...purchases].reverse().forEach(p => {
+        const li = document.createElement('li');
+        // 写真欄
+        let photoEl;
+        if (p.photoUrl) {
+          photoEl = `
+            <div class="p-photo-wrap">
+              <img class="p-thumb" src="${p.photoUrl}" alt="${p.name}"
+                onclick="openLightbox('${p.photoUrl}')">
+              <button class="btn-rephoto" onclick="editPhoto('${p.id}')" title="しゃしんをかえる">📷</button>
+            </div>`;
+        } else {
+          photoEl = `
+            <div class="p-photo-wrap">
+              <div class="p-no-photo" onclick="editPhoto('${p.id}')" title="しゃしんをついか">
+                🧸<span class="add-hint">📷ついか</span>
+              </div>
+            </div>`;
+        }
+        li.innerHTML = `
+          ${photoEl}
+          <span class="p-info">${p.name}</span>
+          <div class="p-right">
+            <span class="p-price">¥${p.price.toLocaleString()}</span>
+            <span class="p-date">${p.date}</span>
+          </div>
+          <button class="btn-del" onclick="deletePurchase('${p.id}')">✕</button>
+        `;
+        ul.appendChild(li);
+      });
+    }
+
+    // ---- 画像リサイズ → Base64（最大320px・Firestore保存用） ----
+    function resizeToBase64(file, maxPx=320) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const ratio = Math.min(maxPx/img.width, maxPx/img.height, 1);
+          const w = Math.round(img.width*ratio);
+          const h = Math.round(img.height*ratio);
+          const canvas = document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    // ---- 写真プレビュー ----
+    let selectedFile = null;
+    window.previewPhoto = function(input) {
+      selectedFile = input.files[0] || null;
+      const wrap = document.getElementById('preview-wrap');
+      const prev = document.getElementById('preview-img');
+      if (selectedFile) {
+        prev.src = URL.createObjectURL(selectedFile);
+        wrap.style.display = 'block';
+      } else {
+        wrap.style.display = 'none';
+      }
+    };
+    window.clearPhoto = function() {
+      selectedFile = null;
+      document.getElementById('p-photo').value = '';
+      document.getElementById('preview-wrap').style.display = 'none';
+    };
+
+    // Firestore
+    const monthKey  = getMonthKey();
+    const budgetRef = doc(db, 'toy_budget', monthKey);
+    let   currentPurchases = [];
+
+    document.getElementById('budget-month-label').textContent =
+      `${new Date().getFullYear()}年${new Date().getMonth()+1}月`;
+
+    onSnapshot(budgetRef, snap => {
+      const data = snap.exists() ? snap.data() : {};
+      currentPurchases = data.purchases || [];
+      currentBudget    = data.budget    || 10000;
+      updateBudgetBar(currentPurchases);
+      renderList(currentPurchases);
+      const badge = document.getElementById('gallery-badge');
+      if (badge) badge.textContent = `${currentPurchases.length}こ`;
+    });
+
+    // ---- シミュレーター（バー統合） ----
+    window.runSim = function(raw) {
+      const price  = parseInt(raw, 10);
+      const status = document.getElementById('sim-status');
+      const clearBtn = document.getElementById('sim-clear');
+      // ×ボタン表示制御
+      if (clearBtn) clearBtn.classList.toggle('show', !(!raw || isNaN(price) || price <= 0));
+      if (!raw || isNaN(price) || price <= 0) {
+        renderBudgetVisual(currentPurchases, 0);
+        status.className = 'sim-status'; return;
+      }
+      renderBudgetVisual(currentPurchases, price);
+
+      const spent    = currentPurchases.reduce((s,p) => s+(p.price||0), 0);
+      const remain   = Math.max(0, currentBudget - spent);
+      const afterRaw = remain - price;
+      const pctAfter = (Math.max(0, afterRaw) / currentBudget) * 100;
+
+      if (afterRaw < 0) {
+        status.textContent = `¥${Math.abs(afterRaw).toLocaleString()} 予算オーバー！`;
+        status.className = 'sim-status show over';
+      } else if (pctAfter <= 10) {
+        status.textContent = `かったら のこり ¥${afterRaw.toLocaleString()}（予算の ${Math.round(pctAfter)}%）`;
+        status.className = 'sim-status show over';
+      } else if (pctAfter <= 30) {
+        status.textContent = `かったら のこり ¥${afterRaw.toLocaleString()}（予算の ${Math.round(pctAfter)}%）`;
+        status.className = 'sim-status show warn';
+      } else {
+        status.textContent = `かったら のこり ¥${afterRaw.toLocaleString()} 👍`;
+        status.className = 'sim-status show ok';
+      }
+    };
+
+    window.clearSim = function() {
+      const input = document.getElementById('sim-input');
+      if (input) { input.value = ''; runSim(''); }
+    };
+
+    // ---- 予算額の編集 ----
+    window.toggleBudgetEdit = function() {
+      const row = document.getElementById('budget-edit-row');
+      const isOpen = row.classList.contains('show');
+      if (!isOpen) {
+        document.getElementById('budget-amount-input').value = currentBudget;
+      }
+      row.classList.toggle('show', !isOpen);
+    };
+
+    window.saveBudgetAmount = async function() {
+      const val = parseInt(document.getElementById('budget-amount-input').value, 10);
+      if (isNaN(val) || val <= 0) { alert('正しい金額をいれてね'); return; }
+      await setDoc(budgetRef, { purchases: currentPurchases, budget: val });
+      document.getElementById('budget-edit-row').classList.remove('show');
+    };
+
+    // ---- 購入追加 ----
+    window.addPurchase = async function() {
+      const name  = document.getElementById('p-name').value.trim();
+      const price = parseInt(document.getElementById('p-price').value, 10);
+      if (!name || isNaN(price) || price<=0) { alert('なまえと ねだんを いれてね！'); return; }
+
+      const prog = document.getElementById('upload-progress');
+      const btn  = document.querySelector('.btn-add');
+      btn.disabled = true;
+
+      let photoUrl = '';
+      if (selectedFile) {
+        prog.style.display = 'block';
+        try {
+          photoUrl = await resizeToBase64(selectedFile);
+        } catch(e) {
+          console.error('resize error', e);
+          alert('しゃしんの よみこみに しっぱいしました');
+          prog.style.display = 'none';
+          btn.disabled = false;
+          return;
+        }
+        prog.style.display = 'none';
+      }
+
+      const n = new Date();
+      const item = {
+        id:    Date.now().toString(),
+        name, price, photoUrl,
+        date: `${n.getMonth()+1}/${n.getDate()}`
+      };
+      await setDoc(budgetRef, { purchases: [...currentPurchases, item] });
+
+      document.getElementById('p-name').value  = '';
+      document.getElementById('p-price').value = '';
+      clearPhoto();
+      btn.disabled = false;
+    };
+
+    // ---- 購入削除（UNDOつき） ----
+    const UNDO_SEC = 6;
+    let undoState = null;   // { snapshot, timer }
+
+    window.deletePurchase = async function(id) {
+      const target   = currentPurchases.find(p => p.id === id);
+      const snapshot = [...currentPurchases];          // 削除前の状態を保存
+      const updated  = currentPurchases.filter(p => p.id !== id);
+
+      // 先に確定保存
+      await setDoc(budgetRef, { purchases: updated });
+
+      // 前のUNDOが残っていたらキャンセル
+      if (undoState) { clearTimeout(undoState.timer); hideUndoToast(); }
+
+      // トースト表示
+      showUndoToast(target?.name || '');
+
+      // 6秒後に自動クローズ（undoしなかった場合）
+      const timer = setTimeout(() => { undoState = null; hideUndoToast(); }, UNDO_SEC * 1000);
+      undoState = { snapshot, timer };
+    };
+
+    window.undoDelete = async function() {
+      if (!undoState) return;
+      clearTimeout(undoState.timer);
+      await setDoc(budgetRef, { purchases: undoState.snapshot });
+      undoState = null;
+      hideUndoToast();
+    };
+
+    function showUndoToast(name) {
+      document.getElementById('undo-toast-name').textContent = name;
+      const bar = document.getElementById('undo-bar');
+      bar.style.animation = 'none';
+      bar.offsetHeight;  // reflow
+      bar.style.animation = `undo-shrink ${UNDO_SEC}s linear forwards`;
+      document.getElementById('undo-toast').classList.add('show');
+    }
+    function hideUndoToast() {
+      document.getElementById('undo-toast').classList.remove('show');
+    }
+
+    // ---- あとから写真を追加・差し替え ----
+    window.editPhoto = function(id) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const prog = document.getElementById('upload-progress');
+        prog.style.display = 'block';
+        try {
+          const base64  = await resizeToBase64(file);
+          const updated = currentPurchases.map(p => p.id===id ? {...p, photoUrl: base64} : p);
+          await setDoc(budgetRef, { purchases: updated });
+        } catch(err) {
+          console.error(err);
+          alert('しゃしんの よみこみに しっぱいしました');
+        }
+        prog.style.display = 'none';
+      };
+      input.click();
+    };
+
+    // ---- ギャラリー ----
+    function renderGallery() {
+      const grid = document.getElementById('gallery-grid');
+      grid.innerHTML = '';
+      const n = new Date();
+      document.getElementById('gallery-month-label').textContent =
+        `${n.getFullYear()}年${n.getMonth()+1}月`;
+
+      // バッジ更新
+      document.getElementById('gallery-badge').textContent = `${currentPurchases.length}こ`;
+
+      if (!currentPurchases.length) {
+        grid.innerHTML = `<div class="gallery-empty" style="grid-column:1/-1">
+          まだ きろくが ないよ🧸<br>
+          「こうにゅう きろく」から ついかしてね！
+        </div>`;
+        return;
+      }
+
+      [...currentPurchases].reverse().forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'gallery-card';
+        if (p.photoUrl) {
+          card.innerHTML = `
+            <img class="gallery-card-img" src="${p.photoUrl}" alt="${p.name}"
+              onclick="openLightbox('${p.photoUrl}')">
+            <div class="gallery-card-overlay">
+              <div class="gallery-card-name">${p.name}</div>
+              <div class="gallery-card-price">¥${(p.price||0).toLocaleString()}</div>
+            </div>`;
+        } else {
+          card.innerHTML = `
+            <div class="gallery-no-photo" onclick="editPhotoFromGallery('${p.id}')">
+              🧸
+              <div class="no-photo-name">${p.name}</div>
+              <div class="no-photo-price">¥${(p.price||0).toLocaleString()}</div>
+              <div style="font-size:0.5em;color:#444;margin-top:6px">📷 タップでついか</div>
+            </div>`;
+        }
+        grid.appendChild(card);
+      });
+    }
+
+    window.openGallery = function() {
+      renderGallery();
+      document.getElementById('gallery-modal').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    };
+    window.closeGallery = function() {
+      document.getElementById('gallery-modal').classList.remove('show');
+      document.body.style.overflow = '';
+    };
+
+    // ギャラリーから写真追加
+    window.editPhotoFromGallery = function(id) {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const base64  = await resizeToBase64(file);
+          const updated = currentPurchases.map(p => p.id===id ? {...p, photoUrl: base64} : p);
+          await setDoc(budgetRef, { purchases: updated });
+          renderGallery();  // ギャラリー内も即更新
+        } catch(err) { console.error(err); }
+      };
+      input.click();
+    };
+
+    // ---- ライトボックス ----
+    window.openLightbox = function(url) {
+      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    };
+    window.closeLightbox = function() {
+      document.getElementById('lightbox').classList.remove('show');
+      document.body.style.overflow = '';
+    };
+
+    // ---- パネル開閉 ----
+    window.toggleBudget = function() {
+      const panel = document.getElementById('budget-panel');
+      const btn   = document.getElementById('budget-toggle-btn');
+      const open  = panel.style.display === 'block';
+      panel.style.display = open ? 'none' : 'block';
+      btn.classList.toggle('open', !open);
+      btn.textContent = open ? '💰 予算をかくにん' : '✕ とじる';
+      if (!open) buildCalendar();
+    };
+  </script>
+</body>
+</html>
