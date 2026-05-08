@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>たんじょうびに ほしい おもちゃ えらんでね！</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: linear-gradient(135deg, #fff9c4, #ffe0f0, #d0f0ff);
+      min-height: 100vh;
+      font-family: 'Hiragino Maru Gothic Pro', 'BIZ UDPGothic', sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center; font-size: 1.8em; color: #e040a0;
+      text-shadow: 2px 2px 0 #fff, -1px -1px 0 #fff;
+      margin-bottom: 8px; line-height: 1.4;
+    }
+    .subtitle { text-align: center; font-size: 1em; color: #666; margin-bottom: 16px; }
+
+    /* ===== 予算トグル ===== */
+    .budget-toggle-wrap { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+    .btn-budget-toggle {
+      background: white; border: 2px solid #e0d0f0; border-radius: 30px;
+      padding: 9px 20px; font-size: 0.9em; cursor: pointer; font-family: inherit;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s; color: #555; font-weight: bold;
+    }
+    .btn-budget-toggle:hover { background: #f5f0ff; }
+    .btn-budget-toggle.open { background: #f5f0ff; border-color: #9b59b6; color: #9b59b6; }
+
+    /* ===== 予算パネル ===== */
+    #budget-panel {
+      background: white; border-radius: 24px; padding: 20px 18px 18px;
+      margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: none;
+    }
+    .budget-section-title { font-size: 0.88em; font-weight: bold; color: #888; margin-bottom: 8px; }
+    .bar-labels { display: flex; justify-content: space-between; font-size: 0.82em; color: #aaa; margin-bottom: 5px; }
+    .bar-track { height: 32px; background: #f0f0f0; border-radius: 16px; overflow: hidden; }
+    .bar-fill {
+      height: 100%; border-radius: 16px;
+      transition: width 0.7s cubic-bezier(.4,0,.2,1), background 0.4s;
+      background: linear-gradient(90deg,#34d399,#4ade80);
+      display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; min-width: 0;
+    }
+    .bar-fill-label { color: white; font-size: 0.8em; font-weight: bold; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+    .bar-fill-label.show { opacity: 1; }
+    .bar-summary { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.88em; }
+    .bar-spent { color: #999; }
+    .bar-remain { font-weight: bold; color: #333; font-size: 1.05em; }
+    .bar-remain.warn { color: #f59e0b; }
+    .bar-remain.danger { color: #f87171; }
+
+    /* ---- カレンダー ---- */
+    .cal-outer { margin-top: 18px; border-top: 1px solid #f0f0f0; padding-top: 16px; }
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .cal-month-label { font-size: 0.9em; font-weight: bold; color: #555; }
+    .cal-days-left {
+      font-size: 0.82em; background: linear-gradient(135deg,#a78bfa,#ec4899);
+      color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold;
+    }
+    .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 3px; }
+    .cal-dow span { text-align: center; font-size: 0.7em; color: #bbb; padding: 2px 0; }
+    .cal-dow span:first-child { color: #f87171; }
+    .cal-dow span:last-child  { color: #60a5fa; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+    .cal-cell {
+      aspect-ratio: 1; border-radius: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 0.78em; position: relative; overflow: hidden;
+    }
+    .cal-cell.empty { background: transparent; }
+    .cal-cell.past { background: #fdf6ff; }
+    .cal-cell.past .sticker {
+      font-size: 1.45em; line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+      transform: rotate(var(--rot));
+    }
+    .cal-cell.past .day-num-small { font-size: 0.68em; color: #ccc; margin-top: 1px; }
+    .cal-cell.today {
+      background: linear-gradient(135deg,#fde68a,#fbbf24);
+      box-shadow: 0 2px 8px rgba(251,191,36,0.5); transform: scale(1.08); z-index: 1;
+    }
+    .cal-cell.today .today-star { font-size: 1.3em; line-height: 1; }
+    .cal-cell.today .today-num { font-size: 0.7em; font-weight: bold; color: #92400e; margin-top: 1px; }
+    .cal-cell.future { background: #f8f8f8; border: 1.5px solid #eee; color: #999; font-size: 0.88em; }
+    .cal-cell.future.weekend-sun { color: #f87171; border-color: #fee2e2; background: #fff5f5; }
+    .cal-cell.future.weekend-sat { color: #93c5fd; border-color: #dbeafe; background: #eff6ff; }
+
+    /* ---- 購入記録 ---- */
+    .purchase-section { margin-top: 16px; border-top: 1px solid #f0f0f0; padding-top: 14px; }
+    .purchase-title { font-size: 0.88em; font-weight: bold; color: #888; margin-bottom: 10px; }
+
+    .purchase-form { display: flex; gap: 6px; margin-bottom: 8px; }
+    .purchase-form input[type="text"] {
+      flex: 2; min-width: 0; padding: 9px 12px; border: 1.5px solid #e8e8e8;
+      border-radius: 12px; font-size: 0.88em; font-family: inherit; outline: none; background: #fafafa;
+    }
+    .purchase-form input[type="text"]:focus { border-color: #c084fc; background: white; }
+    .purchase-form input[type="number"] {
+      flex: 1; min-width: 0; padding: 9px 8px; border: 1.5px solid #e8e8e8;
+      border-radius: 12px; font-size: 0.88em; font-family: inherit; outline: none; background: #fafafa;
+    }
+    .purchase-form input[type="number"]:focus { border-color: #c084fc; background: white; }
+    .btn-add {
+      padding: 9px 14px; background: linear-gradient(135deg,#e040a0,#c026d3);
+      color: white; border: none; border-radius: 12px; cursor: pointer;
+      font-family: inherit; font-size: 0.88em; font-weight: bold;
+      white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(192,38,211,0.25);
+    }
+    .btn-add:active { transform: scale(0.96); }
+
+    /* 写真エリア */
+    .photo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .btn-photo {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 14px; background: #f5f0ff; border: 1.5px solid #ddd6fe;
+      border-radius: 12px; font-size: 0.84em; color: #7c3aed; cursor: pointer;
+      font-family: inherit; font-weight: bold; white-space: nowrap; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-photo:hover { background: #ede9fe; }
+    .photo-preview-wrap {
+      display: none; position: relative; flex-shrink: 0;
+    }
+    .photo-preview-wrap img {
+      width: 56px; height: 56px; object-fit: cover;
+      border-radius: 10px; border: 2px solid #ddd6fe; display: block;
+    }
+    .btn-clear-photo {
+      position: absolute; top: -6px; right: -6px;
+      background: #7c3aed; color: white; border: none; border-radius: 50%;
+      width: 18px; height: 18px; font-size: 0.7em; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .upload-progress {
+      display: none; font-size: 0.8em; color: #a78bfa; text-align: center;
+      padding: 4px 0; animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* 購入リスト */
+    #purchase-list { list-style: none; max-height: 240px; overflow-y: auto; }
+    #purchase-list li {
+      display: flex; align-items: center; padding: 8px 0;
+      border-bottom: 1px dashed #eee; gap: 8px;
+    }
+    #purchase-list li:last-child { border-bottom: none; }
+    .p-thumb {
+      width: 52px; height: 52px; object-fit: cover; border-radius: 10px;
+      border: 2px solid #f0e8ff; flex-shrink: 0; cursor: pointer;
+      transition: transform 0.15s; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .p-thumb:hover { transform: scale(1.08); }
+    .p-no-photo {
+      width: 52px; height: 52px; border-radius: 10px; background: #f5f5f5;
+      border: 2px dashed #ddd; flex-shrink: 0; display: flex;
+      align-items: center; justify-content: center; font-size: 1.3em; color: #ccc;
+    }
+    .p-info { flex: 1; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86em; }
+    .p-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+    .p-price { color: #e040a0; font-weight: bold; font-size: 0.88em; }
+    .p-date  { color: #ccc; font-size: 0.75em; }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: #ddd; font-size: 1em; padding: 2px 5px; flex-shrink: 0; line-height: 1;
+    }
+    .btn-del:hover { color: #f87171; }
+    .purchase-empty { color: #ccc; text-align: center; font-size: 0.84em; padding: 10px 0; }
+
+    /* ===== ライトボックス ===== */
+    #lightbox {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88); z-index: 9999;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    #lightbox.show { display: flex; }
+    #lightbox img {
+      max-width: 92vw; max-height: 88vh;
+      border-radius: 16px; object-fit: contain;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      animation: popIn 0.2s ease;
+    }
+    @keyframes popIn { from{transform:scale(0.85);opacity:0} to{transform:scale(1);opacity:1} }
+    #lightbox-close {
+      position: fixed; top: 16px; right: 20px;
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      font-size: 1.6em; border-radius: 50%; width: 44px; height: 44px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ===== おもちゃ ===== */
+    .series-title {
+      font-size: 1.1em; font-weight: bold; color: #fff;
+      padding: 8px 16px; border-radius: 20px; margin: 20px 0 12px; display: inline-block;
+    }
+    .series-jobraver .series-title   { background: #ff6b35; }
+    .series-shinkalioin .series-title { background: #3b82f6; }
+    .toy-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 20px; margin-bottom: 8px; }
+    .toy-card {
+      background: white; border-radius: 20px; padding: 20px; cursor: pointer;
+      border: 4px solid transparent; transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; user-select: none;
+    }
+    .toy-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    .toy-card.selected {
+      border-color: #f59e0b; background: #fffbeb;
+      transform: translateY(-4px); box-shadow: 0 8px 20px rgba(245,158,11,0.3);
+    }
+    .toy-card .star { position: absolute; top:12px; right:14px; font-size:1.8em; opacity:0.2; transition:all 0.2s; }
+    .toy-card.selected .star { opacity: 1; }
+    .toy-img { width:100%; height:280px; object-fit:contain; margin-bottom:10px; border-radius:10px; }
+    .toy-name { font-size:1em; font-weight:bold; color:#333; line-height:1.5; text-align:center; }
+    .result-box {
+      background:white; border-radius:20px; padding:24px;
+      margin-top:30px; box-shadow:0 4px 16px rgba(0,0,0,0.1); min-height:80px;
+    }
+    .result-box h2 { font-size:1.2em; color:#e040a0; margin-bottom:12px; }
+    .result-list { list-style:none; }
+    .result-list li { padding:6px 0; font-size:0.95em; color:#333; border-bottom:1px dashed #eee; }
+    .result-list li:last-child { border-bottom:none; }
+    .result-list li::before { content:"⭐ "; }
+    .empty-msg { color:#aaa; text-align:center; font-size:0.95em; }
+    .tap-hint  { text-align:center; color:#999; font-size:0.85em; margin-top:6px; }
+  </style>
+</head>
+<body>
+
+  <!-- ライトボックス -->
+  <div id="lightbox" onclick="closeLightbox()">
+    <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="lightbox-img" src="" alt="">
+  </div>
+
+  <h1>🎁 ほしい おもちゃ えらんでね！</h1>
+  <p class="subtitle">ほしいな～ とおもったら タップ！</p>
+
+  <!-- 予算トグル -->
+  <div class="budget-toggle-wrap">
+    <button class="btn-budget-toggle" id="budget-toggle-btn" onclick="toggleBudget()">
+      💰 予算をかくにん
+    </button>
+  </div>
+
+  <!-- 予算パネル -->
+  <div id="budget-panel">
+
+    <!-- ① 予算バー -->
+    <div class="budget-section-title">💴 今月の予算（<span id="budget-month-label"></span>）</div>
+    <div class="bar-labels"><span>¥0</span><span>¥10,000</span></div>
+    <div class="bar-track">
+      <div class="bar-fill" id="budget-bar-fill">
+        <span class="bar-fill-label" id="bar-fill-label"></span>
+      </div>
+    </div>
+    <div class="bar-summary">
+      <span class="bar-spent">つかった: <strong id="b-spent">¥0</strong></span>
+      <span class="bar-remain" id="b-remain-wrap">のこり <strong id="b-remain">¥10,000</strong></span>
+    </div>
+
+    <!-- ② カレンダー -->
+    <div class="cal-outer">
+      <div class="cal-header">
+        <div class="cal-month-label" id="cal-month-label"></div>
+        <div class="cal-days-left"   id="cal-days-left">あと -- 日</div>
+      </div>
+      <div class="cal-dow">
+        <span>日</span><span>月</span><span>火</span><span>水</span>
+        <span>木</span><span>金</span><span>土</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+
+    <!-- ③ 購入記録 -->
+    <div class="purchase-section">
+      <div class="purchase-title">🛒 こうにゅう きろく</div>
+
+      <div class="purchase-form">
+        <input type="text"   id="p-name"  placeholder="なまえ（例：ブレイバー）">
+        <input type="number" id="p-price" placeholder="¥" min="0">
+        <button class="btn-add" onclick="addPurchase()">＋ついか</button>
+      </div>
+
+      <div class="photo-row">
+        <label class="btn-photo" for="p-photo">📷 しゃしんをえらぶ</label>
+        <input type="file" id="p-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+        <div class="photo-preview-wrap" id="preview-wrap">
+          <img id="preview-img" src="" alt="プレビュー">
+          <button class="btn-clear-photo" onclick="clearPhoto()">✕</button>
+        </div>
+      </div>
+
+      <div class="upload-progress" id="upload-progress">📤 アップロード中...</div>
+
+      <ul id="purchase-list">
+        <li class="purchase-empty">まだ きろくがないよ</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ジョブレイバー -->
+  <div class="series-jobraver">
+    <span class="series-title">🚒 トミカヒーローズ ジョブレイバー</span>
+    <div class="toy-grid">
+      <div class="toy-card" onclick="toggle(this)" data-name="DXスカイブレイバー ANAジェット旅客機">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/tjbdx_sb_ana/img/mainimg_01.webp" alt="DXスカイブレイバー ANAジェット旅客機">
+        <div class="toy-name">DXスカイブレイバー<br>ANAジェット旅客機</div>
+      </div>
+      <div class="toy-card" onclick="toggle(this)" data-name="レースブレイバー 日産 GT-R & フェアレディZ ダブルセット">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/dx-race-braver/img/JB_NISSANset_01.png" alt="レースブレイバー 日産 GT-R & フェアレディZ ダブルセット">
+        <div class="toy-name">レースブレイバー<br>日産 GT-R & フェアレディZ<br>ダブルセット</div>
+      </div>
+      <div class="toy-card" onclick="toggle(this)" data-name="DX ポリスブレイバー 機動隊 & 交通機動隊 ダブルセット">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/tjbdx_pb_riotw/img/mainimg_01.webp" alt="DX ポリスブレイバー 機動隊 & 交通機動隊 ダブルセット">
+        <div class="toy-name">DX ポリスブレイバー<br>機動隊 & 交通機動隊<br>ダブルセット</div>
+      </div>
+      <div class="toy-card" onclick="toggle(this)" data-name="グランドビルドブレイバー ダンプトラック & ブルドーザー DX セット">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/tomica/jobraver/products/tjbdx_gbb_dtbd/img/mainimg_01.webp" alt="グランドビルドブレイバー ダンプトラック & ブルドーザー DX セット">
+        <div class="toy-name">グランドビルドブレイバー<br>ダンプトラック & ブルドーザー<br>DX セット</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- シンカリオン -->
+  <div class="series-shinkalioin">
+    <span class="series-title">🚄 シンカリオン チェンジ ザ ワールド</span>
+    <div class="toy-grid">
+      <div class="toy-card" onclick="toggle(this)" data-name="ハーデスシンカリオン デストロイフォーム（ミニュアデス・オルトロスとのセット）">
+        <div class="star">⭐</div>
+        <img class="toy-img" src="https://www.takaratomy.co.jp/products/plarail/shinkalion/cw/images/index/pic_202407_hades_01.png" alt="ハーデスシンカリオン デストロイフォーム">
+        <div class="toy-name">ハーデスシンカリオン デストロイフォーム<br>（ミニュアデス・オルトロス とのセット）</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tap-hint">👆 えらんだら したに でてくるよ！</p>
+
+  <div class="result-box">
+    <h2>⭐ えらんだ おもちゃ</h2>
+    <ul class="result-list" id="result-list"></ul>
+    <p class="empty-msg" id="empty-msg">まだ えらんでないよ〜</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getStorage, ref as sRef, uploadBytes, getDownloadURL }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-fKL8WcDbzFbAqUoZW9lwJOVG-EaQjv4",
+      authDomain: "sakuho-toys.firebaseapp.com",
+      projectId: "sakuho-toys",
+      storageBucket: "sakuho-toys.firebasestorage.app",
+      messagingSenderId: "346664542781",
+      appId: "1:346664542781:web:a5871e4f6b646a3b73c054"
+    };
+    const app     = initializeApp(firebaseConfig);
+    const db      = getFirestore(app);
+    const storage = getStorage(app);
+
+    const SEL_REF = doc(db, 'selection', 'current');
+
+    // ===== おもちゃ選択 =====
+    window.toggle = function(card) {
+      const was = card.classList.contains('selected');
+      document.querySelectorAll('.toy-card').forEach(c => c.classList.remove('selected'));
+      if (!was) card.classList.add('selected');
+      setDoc(SEL_REF, { name: was ? '' : card.dataset.name });
+      updateResult();
+    };
+    (async () => {
+      try {
+        const snap = await getDoc(SEL_REF);
+        if (snap.exists() && snap.data().name) {
+          document.querySelectorAll('.toy-card').forEach(c => {
+            if (c.dataset.name === snap.data().name) c.classList.add('selected');
+          });
+        }
+      } catch(e) {}
+      updateResult();
+    })();
+    function updateResult() {
+      const sel  = document.querySelectorAll('.toy-card.selected');
+      const list = document.getElementById('result-list');
+      const msg  = document.getElementById('empty-msg');
+      list.innerHTML = '';
+      if (!sel.length) { msg.style.display = 'block'; return; }
+      msg.style.display = 'none';
+      sel.forEach(c => {
+        const li = document.createElement('li');
+        li.textContent = c.dataset.name;
+        list.appendChild(li);
+      });
+    }
+
+    // ===== 予算 =====
+    const BUDGET   = 10000;
+    const STICKERS = ['⭐','🌟','💫','🌸','🎀','🍀','🌈','🦋','🎈','🌺','🐝','💝','🎉','🌻','🍭','🎊','🐱','🐶','🐸','🦊','🦁','🐼','🌷','🍓','🍒','🎵','🎨','🚀','🎠','🏅'];
+    const ROTS     = ['−3deg','2deg','−5deg','4deg','−2deg','5deg','−4deg','3deg'];
+
+    function getMonthKey() {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    // ---- カレンダー ----
+    function buildCalendar() {
+      const now       = new Date();
+      const year      = now.getFullYear();
+      const month     = now.getMonth();
+      const today     = now.getDate();
+      const total     = new Date(year, month+1, 0).getDate();
+      const firstDow  = new Date(year, month, 1).getDay();
+      const daysLeft  = total - today;
+      document.getElementById('cal-month-label').textContent = `${year}年${month+1}月`;
+      document.getElementById('cal-days-left').textContent   = daysLeft===0 ? '今日で枠が回復！🎉' : `あと ${daysLeft} 日`;
+      const grid = document.getElementById('cal-grid');
+      grid.innerHTML = '';
+      for (let i=0; i<firstDow; i++) {
+        const e = document.createElement('div');
+        e.className = 'cal-cell empty';
+        grid.appendChild(e);
+      }
+      for (let d=1; d<=total; d++) {
+        const cell = document.createElement('div');
+        const dow  = (firstDow + d - 1) % 7;
+        if (d < today) {
+          cell.className = 'cal-cell past';
+          cell.style.setProperty('--rot', ROTS[(d-1)%ROTS.length]);
+          cell.innerHTML = `<span class="sticker">${STICKERS[(d-1)%STICKERS.length]}</span><span class="day-num-small">${d}</span>`;
+        } else if (d === today) {
+          cell.className = 'cal-cell today';
+          cell.innerHTML = `<span class="today-star">📍</span><span class="today-num">${d}</span>`;
+        } else {
+          let cls = 'cal-cell future';
+          if (dow===0) cls += ' weekend-sun';
+          if (dow===6) cls += ' weekend-sat';
+          cell.className = cls;
+          cell.textContent = d;
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    // ---- 予算バー ----
+    function updateBudgetBar(purchases) {
+      const spent  = purchases.reduce((s,p) => s+(p.price||0), 0);
+      const remain = Math.max(0, BUDGET - spent);
+      const pct    = Math.min(100, (remain/BUDGET)*100);
+      const fill   = document.getElementById('budget-bar-fill');
+      const label  = document.getElementById('bar-fill-label');
+      fill.style.width = pct + '%';
+      if (pct > 50)      fill.style.background = 'linear-gradient(90deg,#34d399,#4ade80)';
+      else if (pct > 20) fill.style.background = 'linear-gradient(90deg,#f59e0b,#fbbf24)';
+      else               fill.style.background = 'linear-gradient(90deg,#ef4444,#f87171)';
+      if (pct > 25) { label.textContent = `¥${remain.toLocaleString()} のこり`; label.classList.add('show'); }
+      else            label.classList.remove('show');
+      document.getElementById('b-spent').textContent  = `¥${spent.toLocaleString()}`;
+      document.getElementById('b-remain').textContent = `¥${remain.toLocaleString()}`;
+      const wrap = document.getElementById('b-remain-wrap');
+      wrap.className = pct>50 ? 'bar-remain' : pct>20 ? 'bar-remain warn' : 'bar-remain danger';
+    }
+
+    // ---- 購入リスト ----
+    function renderList(purchases) {
+      const ul = document.getElementById('purchase-list');
+      ul.innerHTML = '';
+      if (!purchases.length) {
+        const li = document.createElement('li');
+        li.className = 'purchase-empty'; li.textContent = 'まだ きろくがないよ';
+        ul.appendChild(li); return;
+      }
+      [...purchases].reverse().forEach(p => {
+        const li = document.createElement('li');
+        // 写真欄
+        let photoEl;
+        if (p.photoUrl) {
+          photoEl = `<img class="p-thumb" src="${p.photoUrl}" alt="${p.name}" onclick="openLightbox('${p.photoUrl}')">`;
+        } else {
+          photoEl = `<div class="p-no-photo">🧸</div>`;
+        }
+        li.innerHTML = `
+          ${photoEl}
+          <span class="p-info">${p.name}</span>
+          <div class="p-right">
+            <span class="p-price">¥${p.price.toLocaleString()}</span>
+            <span class="p-date">${p.date}</span>
+          </div>
+          <button class="btn-del" onclick="deletePurchase('${p.id}')">✕</button>
+        `;
+        ul.appendChild(li);
+      });
+    }
+
+    // ---- 画像リサイズ（最大800px） ----
+    function resizeImage(file, maxPx=800) {
+      return new Promise(resolve => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const ratio = Math.min(maxPx/img.width, maxPx/img.height, 1);
+          const w = Math.round(img.width*ratio);
+          const h = Math.round(img.height*ratio);
+          const canvas = document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          URL.revokeObjectURL(url);
+          canvas.toBlob(resolve, 'image/jpeg', 0.85);
+        };
+        img.src = url;
+      });
+    }
+
+    // ---- 写真プレビュー ----
+    let selectedFile = null;
+    window.previewPhoto = function(input) {
+      selectedFile = input.files[0] || null;
+      const wrap = document.getElementById('preview-wrap');
+      const prev = document.getElementById('preview-img');
+      if (selectedFile) {
+        prev.src = URL.createObjectURL(selectedFile);
+        wrap.style.display = 'block';
+      } else {
+        wrap.style.display = 'none';
+      }
+    };
+    window.clearPhoto = function() {
+      selectedFile = null;
+      document.getElementById('p-photo').value = '';
+      document.getElementById('preview-wrap').style.display = 'none';
+    };
+
+    // Firestore
+    const monthKey  = getMonthKey();
+    const budgetRef = doc(db, 'toy_budget', monthKey);
+    let   currentPurchases = [];
+
+    document.getElementById('budget-month-label').textContent =
+      `${new Date().getFullYear()}年${new Date().getMonth()+1}月`;
+
+    onSnapshot(budgetRef, snap => {
+      currentPurchases = snap.exists() ? (snap.data().purchases||[]) : [];
+      updateBudgetBar(currentPurchases);
+      renderList(currentPurchases);
+    });
+
+    // ---- 購入追加 ----
+    window.addPurchase = async function() {
+      const name  = document.getElementById('p-name').value.trim();
+      const price = parseInt(document.getElementById('p-price').value, 10);
+      if (!name || isNaN(price) || price<=0) { alert('なまえと ねだんを いれてね！'); return; }
+
+      const prog = document.getElementById('upload-progress');
+      const btn  = document.querySelector('.btn-add');
+      btn.disabled = true;
+
+      let photoUrl = '';
+      if (selectedFile) {
+        prog.style.display = 'block';
+        try {
+          const blob     = await resizeImage(selectedFile);
+          const id       = Date.now().toString();
+          const fileRef  = sRef(storage, `toy_purchases/${monthKey}/${id}.jpg`);
+          await uploadBytes(fileRef, blob);
+          photoUrl = await getDownloadURL(fileRef);
+        } catch(e) {
+          console.error('upload error', e);
+          alert('しゃしんのアップロードに しっぱいしました');
+          prog.style.display = 'none';
+          btn.disabled = false;
+          return;
+        }
+        prog.style.display = 'none';
+      }
+
+      const n = new Date();
+      const item = {
+        id:    Date.now().toString(),
+        name, price, photoUrl,
+        date: `${n.getMonth()+1}/${n.getDate()}`
+      };
+      await setDoc(budgetRef, { purchases: [...currentPurchases, item] });
+
+      document.getElementById('p-name').value  = '';
+      document.getElementById('p-price').value = '';
+      clearPhoto();
+      btn.disabled = false;
+    };
+
+    // ---- 購入削除 ----
+    window.deletePurchase = async function(id) {
+      await setDoc(budgetRef, { purchases: currentPurchases.filter(p=>p.id!==id) });
+    };
+
+    // ---- ライトボックス ----
+    window.openLightbox = function(url) {
+      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    };
+    window.closeLightbox = function() {
+      document.getElementById('lightbox').classList.remove('show');
+      document.body.style.overflow = '';
+    };
+
+    // ---- パネル開閉 ----
+    window.toggleBudget = function() {
+      const panel = document.getElementById('budget-panel');
+      const btn   = document.getElementById('budget-toggle-btn');
+      const open  = panel.style.display === 'block';
+      panel.style.display = open ? 'none' : 'block';
+      btn.classList.toggle('open', !open);
+      btn.textContent = open ? '💰 予算をかくにん' : '✕ とじる';
+      if (!open) buildCalendar();
+    };
+  </script>
+</body>
+</html>
