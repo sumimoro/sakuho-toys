@@ -496,12 +496,17 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; user-select: none;
     }
     .toy-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-    .toy-card.selected {
-      border-color: #f59e0b; background: #fffbeb;
-      transform: translateY(-4px); box-shadow: 0 8px 20px rgba(245,158,11,0.3);
+    .toy-card.selected-jiiji {
+      border-color: #2563eb; background: #eff6ff;
+      transform: translateY(-4px); box-shadow: 0 8px 20px rgba(37,99,235,0.3);
+    }
+    .toy-card.selected-mikiko {
+      border-color: #db2777; background: #fdf2f8;
+      transform: translateY(-4px); box-shadow: 0 8px 20px rgba(219,39,119,0.3);
     }
     .toy-card .star { position: absolute; top:12px; right:14px; font-size:1.8em; opacity:0.2; transition:all 0.2s; }
-    .toy-card.selected .star { opacity: 1; }
+    .toy-card.selected-jiiji .star,
+    .toy-card.selected-mikiko .star { opacity: 1; }
     .toy-img { width:100%; height:280px; object-fit:contain; margin-bottom:10px; border-radius:10px; }
     .toy-name { font-size:1em; font-weight:bold; color:#333; line-height:1.5; text-align:center; }
     .result-box {
@@ -512,7 +517,8 @@
     .result-list { list-style:none; }
     .result-list li { padding:6px 0; font-size:0.95em; color:#333; border-bottom:1px dashed #eee; }
     .result-list li:last-child { border-bottom:none; }
-    .result-list li::before { content:"⭐ "; }
+    .result-jiiji { color: #1d4ed8; }
+    .result-mikiko { color: #be185d; }
     .empty-msg { color:#aaa; text-align:center; font-size:0.95em; }
     .tap-hint  { text-align:center; color:#999; font-size:0.85em; margin-top:6px; }
 
@@ -720,10 +726,10 @@
     </div>
   </div>
 
-  <p class="tap-hint">👆 えらんだら したに でてくるよ！</p>
+  <p class="tap-hint">👆 1かいタップ：👴 じいじ　／　2かいタップ：💕 みきこ姉さん　／　3かいタップ：とりけし</p>
 
   <div class="result-box">
-    <h2>⭐ えらんだ おもちゃ</h2>
+    <h2>🎁 えらんだ おもちゃ</h2>
     <ul class="result-list" id="result-list"></ul>
     <p class="empty-msg" id="empty-msg">まだ えらんでないよ〜</p>
   </div>
@@ -745,38 +751,86 @@
     const db  = getFirestore(app);
 
     const SEL_REF = doc(db, 'selection', 'current');
+    let currentSel = { jiiji: '', mikiko: '' };
+
+    function cardState(card) {
+      if (card.classList.contains('selected-jiiji'))  return 'jiiji';
+      if (card.classList.contains('selected-mikiko')) return 'mikiko';
+      return 'none';
+    }
+
+    function applyCardVisual(card, state) {
+      card.classList.remove('selected-jiiji', 'selected-mikiko');
+      const star = card.querySelector('.star');
+      if (state === 'jiiji')  { card.classList.add('selected-jiiji');  if (star) star.textContent = '👴'; }
+      else if (state === 'mikiko') { card.classList.add('selected-mikiko'); if (star) star.textContent = '💕'; }
+      else                         { if (star) star.textContent = '⭐'; }
+    }
 
     // ===== おもちゃ選択 =====
     window.toggle = function(card) {
-      const was = card.classList.contains('selected');
-      document.querySelectorAll('.toy-card').forEach(c => c.classList.remove('selected'));
-      if (!was) card.classList.add('selected');
-      setDoc(SEL_REF, { name: was ? '' : card.dataset.name });
+      const name  = card.dataset.name;
+      const state = cardState(card);
+
+      if (state === 'none') {
+        // 未選択 → じいじ（先にじいじを解除）
+        document.querySelectorAll('.toy-card.selected-jiiji').forEach(c => applyCardVisual(c, 'none'));
+        currentSel.jiiji = name;
+        applyCardVisual(card, 'jiiji');
+      } else if (state === 'jiiji') {
+        // じいじ → みきこ姉さん（先にみきこを解除）
+        document.querySelectorAll('.toy-card.selected-mikiko').forEach(c => applyCardVisual(c, 'none'));
+        currentSel.jiiji  = '';
+        currentSel.mikiko = name;
+        applyCardVisual(card, 'mikiko');
+      } else {
+        // みきこ姉さん → 未選択
+        currentSel.mikiko = '';
+        applyCardVisual(card, 'none');
+      }
+
+      setDoc(SEL_REF, currentSel);
       updateResult();
     };
+
     (async () => {
       try {
         const snap = await getDoc(SEL_REF);
-        if (snap.exists() && snap.data().name) {
+        if (snap.exists()) {
+          const data = snap.data();
+          // 旧形式（name）にも対応
+          if (data.jiiji || data.mikiko) {
+            currentSel = { jiiji: data.jiiji || '', mikiko: data.mikiko || '' };
+          } else if (data.name) {
+            currentSel = { jiiji: data.name, mikiko: '' };
+          }
           document.querySelectorAll('.toy-card').forEach(c => {
-            if (c.dataset.name === snap.data().name) c.classList.add('selected');
+            if (c.dataset.name === currentSel.jiiji)  applyCardVisual(c, 'jiiji');
+            if (c.dataset.name === currentSel.mikiko) applyCardVisual(c, 'mikiko');
           });
         }
       } catch(e) {}
       updateResult();
     })();
+
     function updateResult() {
-      const sel  = document.querySelectorAll('.toy-card.selected');
       const list = document.getElementById('result-list');
       const msg  = document.getElementById('empty-msg');
       list.innerHTML = '';
-      if (!sel.length) { msg.style.display = 'block'; return; }
+      if (!currentSel.jiiji && !currentSel.mikiko) { msg.style.display = 'block'; return; }
       msg.style.display = 'none';
-      sel.forEach(c => {
+      if (currentSel.jiiji) {
         const li = document.createElement('li');
-        li.textContent = c.dataset.name;
+        li.className = 'result-jiiji';
+        li.innerHTML = `👴 じいじから：${currentSel.jiiji}`;
         list.appendChild(li);
-      });
+      }
+      if (currentSel.mikiko) {
+        const li = document.createElement('li');
+        li.className = 'result-mikiko';
+        li.innerHTML = `💕 みきこ姉さんから：${currentSel.mikiko}`;
+        list.appendChild(li);
+      }
     }
 
     // ===== 予算 =====
