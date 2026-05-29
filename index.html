@@ -482,6 +482,40 @@
       cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
 
+    /* ===== 人選択ボタン ===== */
+    .person-selector {
+      display: flex; gap: 12px; margin: 24px 0 8px;
+    }
+    .person-btn {
+      flex: 1; padding: 18px 10px; border-radius: 20px;
+      border: 3px solid transparent;
+      font-size: 1.05em; font-weight: bold; font-family: inherit;
+      cursor: pointer; transition: all 0.2s; line-height: 1.4;
+    }
+    .person-btn.jiiji-btn {
+      background: #dbeafe; color: #1d4ed8; border-color: #93c5fd;
+    }
+    .person-btn.jiiji-btn.active {
+      background: #2563eb; color: white; border-color: #1d4ed8;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+      transform: scale(1.04);
+    }
+    .person-btn.mikiko-btn {
+      background: #fce7f3; color: #be185d; border-color: #f9a8d4;
+    }
+    .person-btn.mikiko-btn.active {
+      background: #db2777; color: white; border-color: #be185d;
+      box-shadow: 0 4px 16px rgba(219,39,119,0.4);
+      transform: scale(1.04);
+    }
+    .active-hint {
+      text-align: center; font-size: 0.95em; font-weight: bold;
+      margin: 6px 0 18px; padding: 10px 16px; border-radius: 14px;
+      transition: all 0.2s;
+    }
+    .active-hint.jiiji  { background: #eff6ff; color: #1d4ed8; }
+    .active-hint.mikiko { background: #fdf2f8; color: #be185d; }
+
     /* ===== おもちゃ ===== */
     .series-title {
       font-size: 1.1em; font-weight: bold; color: #fff;
@@ -682,6 +716,17 @@
     </div><!-- /budget-panel-body -->
   </div>
 
+  <!-- 人選択ボタン -->
+  <div class="person-selector">
+    <button class="person-btn jiiji-btn active" id="btn-jiiji" onclick="setActivePerson('jiiji')">
+      👴 じいじ<br><span style="font-size:0.78em;font-weight:normal;">のおもちゃをえらぶ</span>
+    </button>
+    <button class="person-btn mikiko-btn" id="btn-mikiko" onclick="setActivePerson('mikiko')">
+      💕 みきこ姉さん<br><span style="font-size:0.78em;font-weight:normal;">のおもちゃをえらぶ</span>
+    </button>
+  </div>
+  <p class="active-hint jiiji" id="active-hint">👴 じいじ の おもちゃを えらんでいるよ！</p>
+
   <!-- ジョブレイバー -->
   <div class="series-jobraver">
     <span class="series-title">🚒 トミカヒーローズ ジョブレイバー</span>
@@ -726,7 +771,7 @@
     </div>
   </div>
 
-  <p class="tap-hint">👆 1かいタップ：👴 じいじ　／　2かいタップ：💕 みきこ姉さん　／　3かいタップ：とりけし</p>
+  <p class="tap-hint">👆 うえのボタンでえらんでから、おもちゃをタップ！　もういちどタップでとりけし</p>
 
   <div class="result-box">
     <h2>🎁 えらんだ おもちゃ</h2>
@@ -751,44 +796,45 @@
     const db  = getFirestore(app);
 
     const SEL_REF = doc(db, 'selection', 'current');
-    let currentSel = { jiiji: '', mikiko: '' };
-
-    function cardState(card) {
-      if (card.classList.contains('selected-jiiji'))  return 'jiiji';
-      if (card.classList.contains('selected-mikiko')) return 'mikiko';
-      return 'none';
-    }
+    let currentSel  = { jiiji: '', mikiko: '' };
+    let activePerson = 'jiiji';
 
     function applyCardVisual(card, state) {
       card.classList.remove('selected-jiiji', 'selected-mikiko');
       const star = card.querySelector('.star');
-      if (state === 'jiiji')  { card.classList.add('selected-jiiji');  if (star) star.textContent = '👴'; }
+      if (state === 'jiiji')       { card.classList.add('selected-jiiji');  if (star) star.textContent = '👴'; }
       else if (state === 'mikiko') { card.classList.add('selected-mikiko'); if (star) star.textContent = '💕'; }
       else                         { if (star) star.textContent = '⭐'; }
     }
 
+    window.setActivePerson = function(person) {
+      activePerson = person;
+      document.getElementById('btn-jiiji').classList.toggle('active',  person === 'jiiji');
+      document.getElementById('btn-mikiko').classList.toggle('active', person === 'mikiko');
+      const hint = document.getElementById('active-hint');
+      if (person === 'jiiji') {
+        hint.textContent = '👴 じいじ の おもちゃを えらんでいるよ！';
+        hint.className = 'active-hint jiiji';
+      } else {
+        hint.textContent = '💕 みきこ姉さん の おもちゃを えらんでいるよ！';
+        hint.className = 'active-hint mikiko';
+      }
+    };
+
     // ===== おもちゃ選択 =====
     window.toggle = function(card) {
-      const name  = card.dataset.name;
-      const state = cardState(card);
-
-      if (state === 'none') {
-        // 未選択 → じいじ（先にじいじを解除）
-        document.querySelectorAll('.toy-card.selected-jiiji').forEach(c => applyCardVisual(c, 'none'));
-        currentSel.jiiji = name;
-        applyCardVisual(card, 'jiiji');
-      } else if (state === 'jiiji') {
-        // じいじ → みきこ姉さん（先にみきこを解除）
-        document.querySelectorAll('.toy-card.selected-mikiko').forEach(c => applyCardVisual(c, 'none'));
-        currentSel.jiiji  = '';
-        currentSel.mikiko = name;
-        applyCardVisual(card, 'mikiko');
-      } else {
-        // みきこ姉さん → 未選択
-        currentSel.mikiko = '';
+      const name = card.dataset.name;
+      // すでにアクティブな人のおもちゃなら取り消し、そうでなければ選択
+      if (currentSel[activePerson] === name) {
+        currentSel[activePerson] = '';
         applyCardVisual(card, 'none');
+      } else {
+        // 前の選択を解除してから新しく選択
+        document.querySelectorAll('.toy-card.selected-' + activePerson)
+          .forEach(c => applyCardVisual(c, 'none'));
+        currentSel[activePerson] = name;
+        applyCardVisual(card, activePerson);
       }
-
       setDoc(SEL_REF, currentSel);
       updateResult();
     };
@@ -798,7 +844,6 @@
         const snap = await getDoc(SEL_REF);
         if (snap.exists()) {
           const data = snap.data();
-          // 旧形式（name）にも対応
           if (data.jiiji || data.mikiko) {
             currentSel = { jiiji: data.jiiji || '', mikiko: data.mikiko || '' };
           } else if (data.name) {
